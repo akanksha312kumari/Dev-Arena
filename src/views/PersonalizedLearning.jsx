@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { API_BASE_URL } from '../config/api';
 import { 
-  BookOpen, Clock, Target, ArrowRight, Activity, Zap, RefreshCw, 
+  BookOpen, Clock, Target, ArrowRight, Zap, RefreshCw, 
   BrainCircuit, CheckCircle, XCircle, Trophy, Sparkles, ShieldAlert, 
-  Award, MessageSquareCode, Send, HelpCircle, Layers, TrendingUp, History
+  Award, Send, HelpCircle, Layers, History, TrendingUp, Mic, Square, Loader2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const PersonalizedLearning = () => {
-  const { user, setUser } = useAuth();
+  const { setUser } = useAuth();
   const [learningPlan, setLearningPlan] = useState(null);
   const [loadingPlan, setLoadingPlan] = useState(true);
   const [planError, setPlanError] = useState(null);
@@ -24,10 +24,15 @@ const PersonalizedLearning = () => {
   const [initialAnswer, setInitialAnswer] = useState('');
   const [defenseAnswer, setDefenseAnswer] = useState('');
 
+  // Voice Recording STT States
+  const [isRecording, setIsRecording] = useState(false); // false, 'initial', 'initial_loading', 'defense', 'defense_loading'
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+
   // Scorecard & Stats
   const [quizStats, setQuizStats] = useState(null);
   const [quizHistory, setQuizHistory] = useState([]);
-  const [loadingStats, setLoadingStats] = useState(false);
+  // const [loadingStats, setLoadingStats] = useState(false);
 
   const fetchLearningPlan = async () => {
     setLoadingPlan(true);
@@ -52,7 +57,7 @@ const PersonalizedLearning = () => {
   };
 
   const fetchQuizStatsAndHistory = async () => {
-    setLoadingStats(true);
+    // setLoadingStats(true);
     try {
       const token = localStorage.getItem('token');
       const [statsRes, historyRes] = await Promise.all([
@@ -70,13 +75,14 @@ const PersonalizedLearning = () => {
     } catch (err) {
       console.error('Failed to fetch quiz stats/history:', err);
     } finally {
-      setLoadingStats(false);
+      // setLoadingStats(false);
     }
   };
 
   useEffect(() => {
     fetchLearningPlan();
     fetchQuizStatsAndHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Clear answer textareas whenever question index or quiz changes
@@ -84,7 +90,77 @@ const PersonalizedLearning = () => {
     setInitialAnswer('');
     setDefenseAnswer('');
     setQuizError(null);
+    handleStopRecording();
   }, [activeQuiz?.currentQuestionIndex, activeQuiz?._id]);
+
+  const handleStartRecording = async (targetField) => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorderRef.current.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        audioChunksRef.current = [];
+        
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'recording.webm');
+        
+        setIsRecording(targetField + '_loading');
+
+        try {
+          const token = localStorage.getItem('token');
+          const res = await fetch(`${API_BASE_URL}/voice/stt`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            },
+            body: formData
+          });
+          
+          if (!res.ok) {
+            let errorMsg = 'STT failed';
+            try {
+              const errData = await res.json();
+              if (errData && errData.message) errorMsg = errData.message;
+            } catch(e) {}
+            throw new Error(errorMsg);
+          }
+          const data = await res.json();
+          
+          if (targetField === 'initial') {
+            setInitialAnswer(prev => prev + (prev ? ' ' : '') + data.transcript);
+          } else {
+            setDefenseAnswer(prev => prev + (prev ? ' ' : '') + data.transcript);
+          }
+        } catch (error) {
+          console.error(error);
+          alert('Failed to transcribe audio.');
+        } finally {
+          setIsRecording(false);
+          stream.getTracks().forEach(track => track.stop());
+        }
+      };
+
+      mediaRecorderRef.current.start();
+      setIsRecording(targetField);
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      alert('Could not access microphone.');
+    }
+  };
+
+  const handleStopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+  };
 
   const handleStartQuiz = async (topicToUse) => {
     const topicName = topicToUse || (selectedTopic === 'custom' ? customTopic : selectedTopic);
@@ -97,6 +173,7 @@ const PersonalizedLearning = () => {
     setQuizError(null);
     setInitialAnswer('');
     setDefenseAnswer('');
+    handleStopRecording();
 
     try {
       const token = localStorage.getItem('token');
@@ -484,7 +561,22 @@ const PersonalizedLearning = () => {
                  {/* STEP 2: Initial Answer Input (When awaiting_initial_answer) */}
                  {currentQ.stepState === 'awaiting_initial_answer' && (
                    <div className="flex flex-col gap-3">
-                     <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Your Answer & Reasoning:</label>
+                     <div className="flex items-center justify-between">
+                       <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Your Answer & Reasoning:</label>
+                       {isRecording === 'initial' ? (
+                         <button onClick={handleStopRecording} className="clay-btn flex items-center gap-1" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', background: 'rgba(239, 68, 68, 0.15)', color: 'var(--accent-danger)' }}>
+                           <Square size={14} fill="currentColor" /> Stop Recording
+                         </button>
+                       ) : isRecording === 'initial_loading' ? (
+                         <button disabled className="clay-btn flex items-center gap-1" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', background: 'transparent' }}>
+                           <Loader2 size={14} className="animate-spin" /> Transcribing...
+                         </button>
+                       ) : (
+                         <button onClick={() => handleStartRecording('initial')} className="clay-btn flex items-center gap-1" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', background: 'transparent', color: 'var(--accent-primary)' }}>
+                           <Mic size={14} /> Voice Answer
+                         </button>
+                       )}
+                     </div>
                      <textarea 
                        rows={4} 
                        className="clay-input"
@@ -531,7 +623,22 @@ const PersonalizedLearning = () => {
                      {/* STEP 4: Defense Textarea (When awaiting_defense) */}
                      {currentQ.stepState === 'awaiting_defense' && (
                        <div className="flex flex-col gap-3 mt-1">
-                         <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Your Defense / Solution Explanation:</label>
+                         <div className="flex items-center justify-between">
+                           <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Your Defense / Solution Explanation:</label>
+                           {isRecording === 'defense' ? (
+                             <button onClick={handleStopRecording} className="clay-btn flex items-center gap-1" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', background: 'rgba(239, 68, 68, 0.15)', color: 'var(--accent-danger)' }}>
+                               <Square size={14} fill="currentColor" /> Stop Recording
+                             </button>
+                           ) : isRecording === 'defense_loading' ? (
+                             <button disabled className="clay-btn flex items-center gap-1" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', background: 'transparent' }}>
+                               <Loader2 size={14} className="animate-spin" /> Transcribing...
+                             </button>
+                           ) : (
+                             <button onClick={() => handleStartRecording('defense')} className="clay-btn flex items-center gap-1" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', background: 'transparent', color: 'var(--accent-primary)' }}>
+                               <Mic size={14} /> Voice Defense
+                             </button>
+                           )}
+                         </div>
                          <textarea 
                            rows={4} 
                            className="clay-input"

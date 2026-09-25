@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext';
 
 const SocketContext = createContext();
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useSocket = () => useContext(SocketContext);
 
 export const SocketProvider = ({ children }) => {
@@ -39,6 +40,7 @@ export const SocketProvider = ({ children }) => {
     return () => {
       newSocket.disconnect();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   return (

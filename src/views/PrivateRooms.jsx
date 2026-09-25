@@ -206,11 +206,11 @@ const PrivateRooms = () => {
       }
     };
     
-    const handleGroupChallengeStarted = (data) => {
+    const handleGroupChallengeStarted = (_data) => {
       setIncomingGroupChallenge(null);
     };
     
-    const handleGroupChallengeCancelled = (data) => {
+    const handleGroupChallengeCancelled = (_data) => {
       setIncomingGroupChallenge(null);
       // Could show toast notification here
     };
@@ -235,6 +235,7 @@ const PrivateRooms = () => {
       socket.off('group_challenge_started', handleGroupChallengeStarted);
       socket.off('group_challenge_cancelled', handleGroupChallengeCancelled);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket, selectedRoom]);
 
   useEffect(() => {

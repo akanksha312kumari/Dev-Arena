@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
-import { Play, CheckCircle, XCircle, Clock, AlertTriangle, Terminal, Trophy, Minus } from 'lucide-react';
+import { Play, CheckCircle, XCircle, Clock, Terminal, Trophy, Minus } from 'lucide-react';
 
 const LiveDuelArena = ({ duel, socket, user, onLeave }) => {
   const [code, setCode] = useState(duel?.problem?.functionSignature || '// Write your solution here\nfunction solve() {\n  \n}\n');
@@ -261,7 +261,7 @@ const LiveDuelArena = ({ duel, socket, user, onLeave }) => {
             <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--card-border)' }}>
               <h3 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Live Leaderboard</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '150px', overflowY: 'auto' }}>
-                {duel?.players?.map((p, idx) => (
+                {duel?.players?.map((p, _idx) => (
                   <div key={p.id} className="flex items-center justify-between" style={{ padding: '0.5rem', background: 'var(--bg-secondary)', borderRadius: '6px' }}>
                     <div className="flex items-center gap-2">
                       <img src={p.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.username}`} alt={p.username} style={{ width: 24, height: 24, borderRadius: '50%' }} />

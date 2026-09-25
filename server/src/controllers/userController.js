@@ -138,6 +138,18 @@ const getUserProfile = async (req, res) => {
   }
 };
 
+const getOwnProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password -__v');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   updateProfile,
   searchUsers,
@@ -147,4 +159,5 @@ module.exports = {
   acceptFriendRequest,
   rejectFriendRequest,
   getUserProfile,
+  getOwnProfile,
 };

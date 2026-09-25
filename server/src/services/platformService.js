@@ -138,7 +138,7 @@ class PlatformService {
 
     if (!user.platformStats) return;
 
-    for (const [platform, stats] of Object.entries(user.platformStats)) {
+    for (const [_platform, stats] of Object.entries(user.platformStats)) {
       if (!stats) continue;
 
       // Rating: we take the maximum across platforms (or could sum, but max is common for global "peak" rating)
@@ -174,7 +174,7 @@ class PlatformService {
 
     const userObj = user.toJSON();
 
-    for (const [platform, stats] of Object.entries(userObj.platformStats || {})) {
+    for (const [_platform, stats] of Object.entries(userObj.platformStats || {})) {
       if (!stats) continue;
       
       if (stats.heatmapData) {

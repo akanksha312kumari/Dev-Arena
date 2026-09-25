@@ -1,8 +1,7 @@
 require('dotenv').config({ override: true });
 
 if (!process.env.JWT_SECRET) {
-  console.error("FATAL ERROR: JWT_SECRET is not defined.");
-  process.exit(1);
+  console.warn("WARNING: JWT_SECRET is not defined. Authentication will fail.");
 }
 
 const http = require('http');
@@ -21,6 +20,7 @@ const aiRoutes = require('./routes/ai.routes');
 const problemRoutes = require('./routes/problem.routes');
 const duelRoutes = require('./routes/duel.routes');
 const quizRoutes = require('./routes/quiz.routes');
+const voiceRoutes = require('./routes/voice.routes');
 
 // Connect to database
 // Note: We only connect if MONGO_URI is set, to avoid crashing if it's not set up yet
@@ -58,6 +58,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/problems', problemRoutes);
 app.use('/api/duels', duelRoutes);
 app.use('/api/quiz', quizRoutes);
+app.use('/api/voice', voiceRoutes);
 
 const initSocket = require('./socket');
 

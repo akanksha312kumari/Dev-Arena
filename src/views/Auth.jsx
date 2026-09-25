@@ -33,6 +33,7 @@ const Auth = () => {
         setError(data.message || 'Something went wrong');
       }
     } catch (err) {
+      console.error(err);
       setError('Network error');
     }
   };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Flame, Trophy, Activity, Swords, Code, ExternalLink, Calendar, Star, TrendingUp, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { Flame, Trophy, Code, Calendar, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 
@@ -149,18 +149,21 @@ const Dashboard = ({ setActiveTab, setSelectedPotd }) => {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
-        const meRes = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (meRes.ok) {
-          const updatedUser = await meRes.json();
-          setUser(updatedUser);
+        if (token && token !== 'null' && token !== 'undefined') {
+          const meRes = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (meRes.ok) {
+            const updatedUser = await meRes.json();
+            setUser(updatedUser);
+          }
         }
         setSyncMsg('Synced!');
       } else {
         setSyncMsg('Sync failed');
       }
     } catch (err) {
+      console.error(err);
       setSyncMsg('Sync error');
     }
     setIsSyncing(false);
@@ -191,11 +194,7 @@ const Dashboard = ({ setActiveTab, setSelectedPotd }) => {
   const stats = user?.stats || { globalRating: 0, dailyStreak: 0, problemsSolved: { easy: 0, medium: 0, hard: 0 } };
   const totalSolved = (stats.problemsSolved?.total) || ((stats.problemsSolved?.easy || 0) + (stats.problemsSolved?.medium || 0) + (stats.problemsSolved?.hard || 0));
   
-  // Fake total counts for progress calculation
-  const EASY_TOTAL = 800;
-  const MED_TOTAL = 1500;
-  const HARD_TOTAL = 700;
-  const totalProblems = EASY_TOTAL + MED_TOTAL + HARD_TOTAL;
+
 
   useEffect(() => {
     // Fetch POTD dynamically

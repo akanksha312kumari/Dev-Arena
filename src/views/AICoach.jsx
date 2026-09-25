@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
-import { Bot, Send, Sparkles } from 'lucide-react';
+import { Bot, Send, Sparkles, Volume2, Square, Loader2, Mic } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
 
@@ -38,7 +38,9 @@ const AICoach = () => {
     if (saved && timestamp && (Date.now() - parseInt(timestamp) < 60 * 60 * 1000)) {
       try {
         return JSON.parse(saved);
-      } catch (e) {}
+      } catch (e) {
+        console.error("Parse error:", e);
+      }
     }
     return [
       { role: 'assistant', content: "Hello! I'm your DevArena AI Coach. Based on your stats, you're crushing Trees and Graphs, but Dynamic Programming could use some work. How can I help you today?" }
@@ -57,6 +59,163 @@ const AICoach = () => {
   }, [messages]);
   const [loading, setLoading] = useState(false);
   const [input, setInput] = useState('');
+
+  const [playingAudio, setPlayingAudio] = useState(null);
+  const [loadingAudio, setLoadingAudio] = useState(null);
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+
+  const handleStartRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorderRef.current.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        audioChunksRef.current = [];
+        
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'recording.webm');
+        
+        setIsTranscribing(true);
+
+        try {
+          const token = localStorage.getItem('token');
+          const res = await fetch(`${import.meta.env.VITE_API_URL}/voice/stt`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            },
+            body: formData
+          });
+          
+          if (!res.ok) {
+            let errorMsg = 'Failed to transcribe audio.';
+            try {
+              const errData = await res.json();
+              if (errData && errData.message) errorMsg = errData.message;
+            } catch(e) {}
+            throw new Error(errorMsg);
+          }
+          const data = await res.json();
+          if (data.transcript && data.transcript.trim()) {
+            setInput(prev => prev + (prev ? ' ' : '') + data.transcript);
+          } else {
+            alert('No speech detected.');
+          }
+        } catch (error) {
+          console.error(error);
+          alert(error.message || 'Failed to transcribe audio.');
+        } finally {
+          setIsTranscribing(false);
+          stream.getTracks().forEach(track => track.stop());
+        }
+      };
+
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error('Error accessing microphone:', err);
+      alert('Could not access microphone. Please check permissions.');
+    }
+  };
+
+  const handleStopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const handlePlayTTS = async (text, index) => {
+    if (loadingAudio === index) return;
+    
+    if (playingAudio === index) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      setPlayingAudio(null);
+      return;
+    }
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+      setPlayingAudio(null);
+    }
+
+    setLoadingAudio(index);
+    try {
+      const token = localStorage.getItem('token');
+      // Simple regex to clean up markdown (bold, italic, code blocks, etc.)
+      const cleanedText = text
+        .replace(/```[\s\S]*?```/g, ' code block ')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/\*\*(.*?)\*\*/g, '$1')
+        .replace(/\*(.*?)\*/g, '$1')
+        .replace(/#(.*?)(\n|$)/g, '$1$2')
+        .trim();
+
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/voice/tts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ text: cleanedText })
+      });
+
+      if (!res.ok) {
+        let errorMsg = 'TTS failed';
+        try {
+          const data = await res.json();
+          if (data && data.message) errorMsg = data.message;
+        } catch(e) {}
+        throw new Error(errorMsg);
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      
+      audio.onended = () => {
+        setPlayingAudio(null);
+        URL.revokeObjectURL(url);
+      };
+      
+      await audio.play();
+      setPlayingAudio(index);
+    } catch (error) {
+      console.error(error);
+      alert('Voice playback is currently unavailable.');
+    } finally {
+      setLoadingAudio(null);
+    }
+  };
 
   const handleSend = async (text) => {
     if (!text.trim() || loading) return;
@@ -141,6 +300,22 @@ const AICoach = () => {
                 borderBottomLeftRadius: msg.role === 'assistant' ? '4px' : '12px',
               }}>
                 {msg.content}
+                {msg.role === 'assistant' && (
+                  <button 
+                    onClick={() => handlePlayTTS(msg.content, i)} 
+                    className="flex items-center justify-center mt-2 p-1" 
+                    style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', opacity: 0.8 }}
+                    title={playingAudio === i ? "Stop playback" : "Play response"}
+                  >
+                    {loadingAudio === i ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : playingAudio === i ? (
+                      <Square size={16} fill="currentColor" />
+                    ) : (
+                      <Volume2 size={16} />
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -157,16 +332,32 @@ const AICoach = () => {
             </button>
           </div>
               <div className="flex gap-2">
+                <button 
+                  className={`btn ${isRecording ? '' : 'btn-outline'}`}
+                  onClick={isRecording ? handleStopRecording : handleStartRecording}
+                  disabled={loading || isTranscribing}
+                  title={isRecording ? "Stop recording" : "Start voice input"}
+                  style={{ 
+                    padding: '0.75rem', 
+                    borderRadius: '8px',
+                    border: '1px solid',
+                    borderColor: isRecording ? 'var(--accent-danger)' : 'var(--card-border)',
+                    background: isRecording ? 'rgba(239, 68, 68, 0.1)' : 'transparent',
+                    color: isRecording ? 'var(--accent-danger)' : 'var(--text-primary)'
+                  }}
+                >
+                  {isTranscribing ? <Loader2 size={20} className="animate-spin" /> : (isRecording ? <Square size={20} fill="currentColor" /> : <Mic size={20} />)}
+                </button>
                 <input 
                   type="text" 
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask me anything..." 
+                  placeholder={isRecording ? 'Listening...' : (isTranscribing ? 'Transcribing...' : 'Ask me anything...')}
                   style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--card-border)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }} 
                   onKeyDown={(e) => e.key === 'Enter' && handleSend(input)}
-                  disabled={loading}
+                  disabled={loading || isRecording || isTranscribing}
                 />
-                <button className="btn btn-primary" onClick={() => handleSend(input)} disabled={loading}>
+                <button className="btn btn-primary" onClick={() => handleSend(input)} disabled={loading || isRecording || isTranscribing || (!input.trim() && !isRecording)}>
                   <Send size={20} />
                 </button>
               </div>
