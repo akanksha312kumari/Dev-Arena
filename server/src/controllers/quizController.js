@@ -1,46 +1,12 @@
 const QuizAttempt = require('../models/QuizAttempt');
 const User = require('../models/User');
 const gamificationService = require('../services/gamificationService');
-
-const GROQ_MODELS = ['groq/compound-mini', 'qwen/qwen3.6-27b', 'openai/gpt-oss-20b', 'groq/compound'];
+const { callGeminiAPI } = require('../services/geminiService');
 
 const callGroqAi = async (messages) => {
-  if (!process.env.GROQ_API_KEY) {
-    throw new Error('GROQ_API_KEY is not configured in server environment.');
-  }
-
-  let lastError = null;
-  for (const model of GROQ_MODELS) {
-    try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: model,
-          messages: messages
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        let content = data.choices[0]?.message?.content || '';
-        content = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-        return content;
-      } else {
-        const errText = await response.text();
-        console.warn(`Groq model ${model} failed (${response.status}):`, errText);
-        lastError = new Error(`Groq API Error (${response.status}): ${errText}`);
-      }
-    } catch (err) {
-      console.warn(`Groq model ${model} error:`, err.message);
-      lastError = err;
-    }
-  }
-  throw lastError || new Error('All Groq AI models failed');
+  return await callGeminiAPI(messages);
 };
+
 
 const parseAndValidateAiJson = (rawText, requiredKeys = []) => {
   let cleaned = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
