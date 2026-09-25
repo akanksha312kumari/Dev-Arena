@@ -37,6 +37,10 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 app.get('/healthz', (req, res) => {
   res.status(200).json({
     status: 'ok',
@@ -44,6 +48,7 @@ app.get('/healthz', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
 
 app.get('/', (req, res) => {
   res.send('DevArena API is running. Visit /api/health to check health status.');
