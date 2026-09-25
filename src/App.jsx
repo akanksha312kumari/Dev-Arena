@@ -96,6 +96,9 @@ const App = () => {
 
   const acceptIncomingChallenge = () => {
     if (!incomingChallenge) return;
+    try {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } catch(e) {}
     socket.emit('accept_challenge', {
       senderId: incomingChallenge.senderId,
       challengeId: incomingChallenge.challengeId,

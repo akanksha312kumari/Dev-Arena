@@ -139,6 +139,10 @@ const Friends = ({ onlineUsers = [] }) => {
       return;
     }
 
+    try {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } catch(e) {}
+
     const problem = {
       platform: challengeData.platform,
       problemId: challengeData.problemId,

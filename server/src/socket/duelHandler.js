@@ -496,6 +496,54 @@ module.exports = (io, socket, connectedUsers) => {
     io.to(duelId).emit('victory_disputed', { claimantId });
   });
 
+  socket.on('report_anti_cheat', (data) => {
+    const { duelId, eventType, metadata } = data;
+    const userId = connectedUsers.get(socket.id);
+    if (!userId) return;
+
+    const duel = activeDuels.get(duelId);
+    if (!duel || duel.status !== 'active') return;
+
+    const player = duel.players.find(p => p.id === userId);
+    if (!player) return;
+
+    if (!player.antiCheat) {
+      player.antiCheat = {
+        violations: 0,
+        events: [],
+        lastEventTime: 0
+      };
+    }
+
+    const now = Date.now();
+    // 2000ms cooldown for deduplication of rapid events
+    if (now - player.antiCheat.lastEventTime < 2000) return;
+    player.antiCheat.lastEventTime = now;
+
+    const violationThreshold = parseInt(process.env.ANTI_CHEAT_VIOLATION_THRESHOLD || '3', 10);
+
+    const event = { type: eventType, timestamp: now, metadata };
+    player.antiCheat.events.push(event);
+
+    if (eventType === 'FULLSCREEN_EXIT' || eventType === 'TAB_HIDDEN') {
+      player.antiCheat.violations += 1;
+      
+      io.to(duelId).emit('anti_cheat_warning', { 
+        userId, 
+        eventType,
+        violations: player.antiCheat.violations, 
+        maxViolations: violationThreshold 
+      });
+
+      if (player.antiCheat.violations >= violationThreshold) {
+        handleAntiCheatForfeit(io, duel, userId);
+      }
+    } else if (eventType === 'SUSPICIOUS_PASTE' || eventType === 'AI_CODE_SIGNAL') {
+      // Just record as a signal without forcing immediate forfeiture
+      io.to(duelId).emit('anti_cheat_signal', { userId, eventType });
+    }
+  });
+
   socket.on('debug_dump', () => {
     const duels = {};
     for (const [k, v] of activeDuels.entries()) {
@@ -632,7 +680,12 @@ const handleDuelForfeit = (io, duel, forfeitingUserId) => {
   Duel.create({
     players: duel.players.map(p => p.id),
     winner: winnerId,
-    problem: duel.problem,
+    problem: {
+      platform: duel.problem.platform || 'Unknown',
+      problemId: duel.problem.problemId || duel.problem.id || duel.problem.questionId || 'unknown',
+      title: duel.problem.title || 'Unknown',
+      difficulty: duel.problem.difficulty || 'Medium'
+    },
     timeLimit: duel.timeLimit,
     status: 'finished',
     startTime: new Date(duel.startTime),
@@ -678,6 +731,88 @@ const handleDuelForfeit = (io, duel, forfeitingUserId) => {
     duelId: duel.id,
     winner: winnerId,
     reason: 'Opponent Forfeited'
+  });
+  activeDuels.delete(duel.id);
+};
+
+const handleAntiCheatForfeit = (io, duel, forfeitingUserId) => {
+  if (duel.status === 'finished') return; 
+  
+  duel.status = 'finished';
+  
+  if (duel.countdownInterval) clearInterval(duel.countdownInterval);
+  if (duel.matchTimeout) clearTimeout(duel.matchTimeout);
+  
+  const losers = duel.players.filter(p => p.id === forfeitingUserId);
+  const winners = duel.players.filter(p => p.id !== forfeitingUserId);
+  
+  if (winners.length === 0 || losers.length === 0) {
+      activeDuels.delete(duel.id);
+      return; 
+  }
+  
+  const winnerId = winners[0].id;
+  duel.winner = winnerId;
+  
+  const antiCheatEvents = [];
+  duel.players.forEach(p => {
+    if (p.antiCheat && p.antiCheat.events) {
+      p.antiCheat.events.forEach(e => antiCheatEvents.push({ playerId: p.id, ...e }));
+    }
+  });
+  
+  // Persist to MongoDB
+  Duel.create({
+    players: duel.players.map(p => p.id),
+    winner: winnerId,
+    problem: {
+      platform: duel.problem.platform || 'Unknown',
+      problemId: duel.problem.problemId || duel.problem.id || duel.problem.questionId || 'unknown',
+      title: duel.problem.title || 'Unknown',
+      difficulty: duel.problem.difficulty || 'Medium'
+    },
+    timeLimit: duel.timeLimit,
+    status: 'finished',
+    antiCheatEvents,
+    forfeitedBy: forfeitingUserId,
+    startTime: new Date(duel.startTime),
+    endTime: new Date()
+  }).catch(err => console.error('Error saving anti-cheat forfeit duel to DB:', err));
+  
+  // Update Winner
+  User.findById(winnerId).then(user => {
+    if (user) {
+      user.stats = user.stats || {};
+      user.stats.duels = user.stats.duels || { total: 0, wins: 0, losses: 0 };
+      user.stats.duels.total += 1;
+      user.stats.duels.wins += 1;
+      
+      recordActivity(user, duel.problem, 'Win (Opponent Disqualified)');
+
+      gamificationService.awardXP(user, 100, 'Won a duel by opponent disqualification!', 'duel_win');
+      gamificationService.updateStreak(user);
+      user.save().then(() => {
+        io.to(winnerId).emit('xp_awarded', { amount: 100, reason: 'Won a duel!' });
+      });
+    }
+  }).catch(err => console.error('Error updating winner stats:', err));
+
+  // Update Loser
+  User.findById(forfeitingUserId).then(user => {
+    if (user) {
+      user.stats = user.stats || {};
+      user.stats.duels = user.stats.duels || { total: 0, wins: 0, losses: 0 };
+      user.stats.duels.total += 1;
+      user.stats.duels.losses += 1;
+      recordActivity(user, duel.problem, 'Loss (Disqualified)');
+      user.save();
+    }
+  }).catch(err => console.error('Error updating loser stats:', err));
+  
+  io.to(duel.id).emit('duel_forfeited', {
+    duelId: duel.id,
+    winner: winnerId,
+    reason: 'Anti-Cheat Violation'
   });
   activeDuels.delete(duel.id);
 };

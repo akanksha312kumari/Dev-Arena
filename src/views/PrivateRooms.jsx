@@ -284,6 +284,10 @@ const PrivateRooms = () => {
 
     if (!challengeData.problemId) return;
 
+    try {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } catch(e) {}
+
     const problem = {
       platform: challengeData.platform,
       problemId: challengeData.problemId,
@@ -302,6 +306,9 @@ const PrivateRooms = () => {
 
   const handleAcceptGroupChallenge = () => {
     if (!incomingGroupChallenge) return;
+    try {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } catch(e) {}
     socket.emit('accept_group_challenge', { duelId: incomingGroupChallenge.duelId });
     // After accepting, wait for the lobby timer to end, which triggers group_challenge_started
     // Hide the prompt for now, or change it to "Waiting for others..."

@@ -30,7 +30,13 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
             <button
               key={tab.id}
               className={`nav-item w-full ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                if (window.isDuelActive && tab.id !== 'duels') {
+                  alert('You cannot navigate away during an active duel!');
+                  return;
+                }
+                setActiveTab(tab.id);
+              }}
               style={{ textAlign: 'left' }}
             >
               <Icon size={18} />
@@ -43,7 +49,13 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
       <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         <button
           className={`nav-item w-full ${activeTab === 'settings' ? 'active' : ''}`}
-          onClick={() => setActiveTab('settings')}
+          onClick={() => {
+            if (window.isDuelActive) {
+              alert('You cannot navigate away during an active duel!');
+              return;
+            }
+            setActiveTab('settings');
+          }}
           style={{ textAlign: 'left', marginBottom: 0 }}
         >
           <Settings size={18} />
