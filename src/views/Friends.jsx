@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Search, UserPlus, Swords } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { Search, UserPlus, Swords } from 'lucide-react';
 import { useSocket } from '../context/SocketContext';
 import UserProfileModal from '../components/UserProfileModal';
 
 const Friends = ({ onlineUsers = [] }) => {
-  const { user } = useAuth();
+  // const { user } = useAuth();
   const socket = useSocket();
   const [friends, setFriends] = useState([]);
   const [friendRequests, setFriendRequests] = useState([]);
@@ -86,6 +85,7 @@ const Friends = ({ onlineUsers = [] }) => {
       setMessage(data.message);
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
+      console.error(error);
       setMessage('Error sending request');
     }
   };

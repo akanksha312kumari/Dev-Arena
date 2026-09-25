@@ -12,6 +12,7 @@ const Leaderboards = () => {
 
   useEffect(() => {
     fetchLeaderboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, sortBy]);
 
   const fetchLeaderboard = async () => {

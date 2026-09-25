@@ -24,6 +24,7 @@ const PotdSolver = ({ potd, setActiveTab }) => {
       setSolved(true);
       setConsoleOutput([{ type: 'success', text: 'You have already solved this POTD!' }]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [potd, language, user]);
 
   const handleLanguageChange = (e) => {
@@ -70,6 +71,7 @@ const PotdSolver = ({ potd, setActiveTab }) => {
         ]);
       }
     } catch (error) {
+      console.error(error);
       setConsoleOutput([{ type: 'error', text: 'Network error or server failed to respond.' }]);
     }
     

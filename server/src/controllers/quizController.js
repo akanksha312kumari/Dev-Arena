@@ -35,6 +35,9 @@ const clampScore = (val) => {
 const startQuiz = async (req, res) => {
   try {
     const { topic } = req.body;
+    if (!process.env.GROQ_API_KEY) {
+      return res.status(503).json({ message: 'AI Quiz Service is unavailable: GROQ_API_KEY is not configured.' });
+    }
     if (!topic || typeof topic !== 'string' || !topic.trim()) {
       return res.status(400).json({ message: 'Please provide a valid topic.' });
     }
@@ -103,6 +106,9 @@ Return ONLY a valid JSON object with exact keys:
 const submitAnswer = async (req, res) => {
   try {
     const { quizId, answer } = req.body;
+    if (!process.env.GROQ_API_KEY) {
+      return res.status(503).json({ message: 'AI Quiz Service is unavailable: GROQ_API_KEY is not configured.' });
+    }
     if (!quizId || !answer || !answer.trim()) {
       return res.status(400).json({ message: 'Quiz ID and initial answer are required.' });
     }
@@ -250,6 +256,9 @@ Return ONLY a valid JSON object:
 const evaluateDefense = async (req, res) => {
   try {
     const { quizId, defense } = req.body;
+    if (!process.env.GROQ_API_KEY) {
+      return res.status(503).json({ message: 'AI Quiz Service is unavailable: GROQ_API_KEY is not configured.' });
+    }
     if (!quizId || !defense || !defense.trim()) {
       return res.status(400).json({ message: 'Quiz ID and defense explanation are required.' });
     }

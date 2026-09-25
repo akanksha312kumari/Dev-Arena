@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 
 const AuthContext = createContext();
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
@@ -11,7 +12,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const fetchUser = async () => {
       const token = localStorage.getItem('token');
-      if (token) {
+      if (token && token !== 'null' && token !== 'undefined') {
         try {
           const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
             headers: {
