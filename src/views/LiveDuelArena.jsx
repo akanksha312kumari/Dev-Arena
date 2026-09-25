@@ -102,6 +102,14 @@ const LiveDuelArena = ({ duel, socket, user, onLeave }) => {
     socket.on('duel_forfeited', handleDuelForfeited);
     socket.on('player_status_update', handlePlayerStatusUpdate);
 
+    const handleAntiCheatWarning = (data) => {
+      if (data.userId === user?._id) {
+        alert(`WARNING: You have triggered an anti-cheat event (${data.eventType}). Violation ${data.violations}/${data.maxViolations}`);
+      }
+    };
+    
+    socket.on('anti_cheat_warning', handleAntiCheatWarning);
+
     return () => {
       socket.off('opponent_submission', handleOpponentSub);
       socket.off('submission_failed', handleSubFailed);
@@ -109,8 +117,9 @@ const LiveDuelArena = ({ duel, socket, user, onLeave }) => {
       socket.off('duel_finished', handleDuelFinished);
       socket.off('duel_forfeited', handleDuelForfeited);
       socket.off('player_status_update', handlePlayerStatusUpdate);
+      socket.off('anti_cheat_warning', handleAntiCheatWarning);
     };
-  }, [socket, duel]);
+  }, [socket, duel, user]);
 
   const handleRunCode = () => {
     if (isRunning || isSubmitting || matchResult) return;
@@ -131,13 +140,72 @@ const LiveDuelArena = ({ duel, socket, user, onLeave }) => {
     });
   };
 
+  const [isLeaving, setIsLeaving] = useState(false);
+
   const handleLeaveClick = () => {
+    if (isLeaving) return;
+    
     if (window.confirm('Are you sure you want to leave? This will forfeit the match.')) {
-      socket.emit('leave_duel', duel.id);
+      setIsLeaving(true);
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+      window.isDuelActive = false;
+      
+      if (socket && socket.connected) {
+        socket.emit('leave_duel', duel.id);
+      }
+      
       alert('You left the duel. The match has been forfeited.');
       onLeave();
     }
   };
+
+  useEffect(() => {
+    const isActive = duel && duel.status === 'active' && !matchResult;
+    window.isDuelActive = !!isActive;
+
+    const handleBeforeUnload = (e) => {
+      if (window.isDuelActive) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    if (!isActive) return;
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        socket.emit('report_anti_cheat', { duelId: duel.id, eventType: 'TAB_HIDDEN' });
+      }
+    };
+
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        socket.emit('report_anti_cheat', { duelId: duel.id, eventType: 'FULLSCREEN_EXIT' });
+      }
+    };
+
+    const handleCopyPaste = (e) => {
+      const pasteData = (e.clipboardData || window.clipboardData).getData('text');
+      if (pasteData.length > 50) {
+        socket.emit('report_anti_cheat', { duelId: duel.id, eventType: 'SUSPICIOUS_PASTE', metadata: { length: pasteData.length } });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('paste', handleCopyPaste);
+
+    return () => {
+      window.isDuelActive = false;
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('paste', handleCopyPaste);
+    };
+  }, [duel, socket, matchResult]);
 
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60);
@@ -204,7 +272,12 @@ const LiveDuelArena = ({ duel, socket, user, onLeave }) => {
               </span>
             </div>
           </div>
-          <button className="clay-btn btn-outline" onClick={handleLeaveClick}>Leave</button>
+          <button 
+            className="clay-btn btn-outline" 
+            onClick={handleLeaveClick}
+          >
+            Leave
+          </button>
         </div>
       </header>
 

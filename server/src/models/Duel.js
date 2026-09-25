@@ -11,6 +11,13 @@ const duelSchema = new mongoose.Schema({
   },
   timeLimit: { type: Number, required: true }, // in minutes
   status: { type: String, enum: ['pending', 'active', 'finished', 'cancelled'], default: 'pending' },
+  antiCheatEvents: [{
+    playerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    type: { type: String },
+    timestamp: { type: Number },
+    metadata: { type: mongoose.Schema.Types.Mixed }
+  }],
+  forfeitedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   startTime: { type: Date },
   endTime: { type: Date }
 }, { timestamps: true });

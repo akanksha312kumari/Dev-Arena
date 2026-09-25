@@ -189,6 +189,9 @@ const LiveDuels = ({ initialDuelData, onlineUsers = [], completedDuelIds }) => {
   };
 
   const handleFindRandomMatch = () => {
+    try {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } catch(e) {}
     setIsSearching(true);
     socket.emit('find_random_match');
   };
