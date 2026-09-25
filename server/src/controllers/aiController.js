@@ -1,45 +1,5 @@
 const User = require('../models/User');
-
-const GROQ_MODELS = ['groq/compound', 'qwen/qwen3.6-27b', 'openai/gpt-oss-20b', 'groq/compound-mini'];
-
-const callGroqAPI = async (messages, isJson = false) => {
-  if (!process.env.GROQ_API_KEY) {
-    throw new Error('GROQ_API_KEY missing');
-  }
-
-  let lastError = null;
-  for (const model of GROQ_MODELS) {
-    try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: model,
-          messages: messages
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        let content = data.choices[0]?.message?.content || '';
-        // Clean thinking tags if present
-        content = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-        return content;
-      } else {
-        const errText = await response.text();
-        console.warn(`Groq API Model ${model} failed (${response.status}):`, errText);
-        lastError = new Error(`Groq API Error (${response.status}): ${errText}`);
-      }
-    } catch (err) {
-      console.warn(`Groq API Model ${model} fetch error:`, err.message);
-      lastError = err;
-    }
-  }
-  throw lastError || new Error('All Groq models failed');
-};
+const { callGeminiAPI } = require('../services/geminiService');
 
 const aiChat = async (req, res) => {
   let user = null;
@@ -52,14 +12,14 @@ const aiChat = async (req, res) => {
     user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    if (!process.env.GROQ_API_KEY) {
+    if (!process.env.GEMINI_API_KEY && !process.env.GROQ_API_KEY) {
       const msg = req.body.messages[req.body.messages.length - 1]?.content.toLowerCase() || '';
       let reply = `I see you have ${user.xp} XP and a ${user.stats.dailyStreak}-day streak! Keep up the good work.`;
       if (msg.includes('hello') || msg.includes('hi')) reply = `Hello ${user.username}! How can I help with your coding today?`;
-      return res.json({ content: `[Coach] ${reply} (Note: Add GROQ_API_KEY to server/.env for real AI)` });
+      return res.json({ content: `[Coach] ${reply} (Note: Add GEMINI_API_KEY to server/.env for real Gemini AI)` });
     }
 
-    const systemInstruction = `You are the DevArena AI Coach. 
+    const systemInstruction = `You are the DevArena AI Coach powered by Google Gemini. 
     You are advising user ${user.username}.
     Their stats: Level ${user.level}, XP ${user.xp}, Daily Streak: ${user.stats.dailyStreak}.
     Global Rating: ${user.stats.globalRating}.
@@ -72,10 +32,10 @@ const aiChat = async (req, res) => {
 
     const lastUserMsg = messages[messages.length - 1]?.content || 'Hello';
     
-    const text = await callGroqAPI([
+    const text = await callGeminiAPI([
       { role: 'system', content: systemInstruction },
       { role: 'user', content: lastUserMsg }
-    ]);
+    ], systemInstruction);
 
     res.json({ content: text });
   } catch (error) {
@@ -122,7 +82,7 @@ const getLearningPlan = async (req, res) => {
       });
     }
 
-    if (!process.env.GROQ_API_KEY) {
+    if (!process.env.GEMINI_API_KEY && !process.env.GROQ_API_KEY) {
       return res.json({
         roadmap: [
           { topic: 'Dynamic Programming', difficulty: 'Hard', estimatedTime: '2 hours', reason: 'You have a 30% success rate.', steps: ['Learn memoization', 'Solve 1D DP', 'Solve 2D DP'] },
@@ -144,7 +104,7 @@ const getLearningPlan = async (req, res) => {
       recentSubmissions: user.recentSubmissions.slice(0, 10).map(s => s.title)
     };
 
-    const prompt = `You are a personalized AI coding coach powered by Llama/Groq. 
+    const prompt = `You are a personalized AI coding coach powered by Google Gemini. 
 Analyze the following user stats: ${JSON.stringify(userStats)}.
 Based on their rating, solved problems, and recent submissions, generate:
 1. A Personalized Learning Roadmap: Rank topics from weakest to strongest. Recommend the next 5 topics to study with estimated difficulty, study time, a short reason, and an array of 3 very brief actionable steps to tackle the topic (e.g. ['Learn theory', 'Solve 5 easy array problems', 'Master two pointers technique']).
@@ -160,8 +120,8 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no backt
   ]
 }`;
 
-    console.log("Generating Learning Plan using Groq API...");
-    let resultText = await callGroqAPI([{ role: 'user', content: prompt }]);
+    console.log("Generating Learning Plan using Gemini API...");
+    let resultText = await callGeminiAPI(prompt);
     resultText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
     
     const parsedData = JSON.parse(resultText);
