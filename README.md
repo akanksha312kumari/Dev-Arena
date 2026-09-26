@@ -1,39 +1,25 @@
-
 <div>  
   <h1>🚀 DevArena</h1>
   <p><strong>The Next-Generation AI-Powered Coding Platform & Personalized Learning Coach</strong></p>
-  <p><i>Official Submission for the "VibeForge 1.0" Hackathon 2026</i></p>
+  <p><i>Official Submission for HACKNEX SEASON 2</i></p>
 </div>
 
 <hr />
 
 ## 🎯 The Problem
-Learning Data Structures and Algorithms (DSA) is overwhelming because the learning ecosystem is completely fragmented. Students are forced to juggle **scattered coding platforms**—using one site for reading tutorials, another for practicing problems, and yet another for tracking progress. On top of this scattered experience, most platforms provide static generic solutions, leaving students stuck without personalized guidance.
+Learning Data Structures and Algorithms (DSA) is overwhelming because the learning ecosystem is completely fragmented. Students are forced to juggle scattered coding platforms for reading tutorials, practicing problems, and tracking progress. On top of this, most platforms provide static generic solutions, leaving students stuck without personalized guidance.
 
 ## 💡 The Solution: DevArena
-DevArena is an all-in-one, unified educational platform that eliminates the need for scattered tools. **It integrates all major coding platforms into one single hub.** By acting as a central dashboard, DevArena brings together practice problems, competitive programming tracking, and—most importantly—uses **Gemma** as a 24/7 personal coding coach. Instead of just giving users the answer, DevArena analyzes their coding statistics across all integrated platforms, identifies their weakest topics, and generates a dynamic, personalized learning roadmap to guide them to success within a single ecosystem.
+DevArena is an all-in-one, unified educational platform that eliminates the need for scattered tools. It integrates competitive programming tracking, real-time multiplayer code duels, and uses AI as a 24/7 personal coding coach. Through our Socratic learning methods, AI voices (ElevenLabs), and code execution sandboxes (JDoodle), DevArena creates an immersive learning experience.
+
 ---
 
 ## ✨ Key Features
-- **Live Coding Duels & Private Rooms:** Compete with friends in real-time coding arenas, manage room members, and view live updates via WebSockets.
-- **Personalized Learning & Skill Analysis:** The Gemma-powered AI Coach generates personalized roadmaps and analyzes your skills based on your past performance.
-- **User Profiles & Social Features:** View detailed profiles, manage your friends list, and climb the global leaderboards.
+- **Live Coding Duels & Anti-Cheat System:** Compete with friends in real-time coding arenas. The system includes server-authoritative matchmaking, automated JDoodle test evaluation, and anti-cheat monitors for window/fullscreen focus.
+- **AI Coach & Socratic Quizzes:** Generate personalized roadmaps and analyze your skills. The AI guides you through Socratic reasoning, converting speech-to-text (STT) for natural conversations and reading out responses using ElevenLabs Text-to-Speech (TTS).
+- **Secure Code Execution:** Integrated with JDoodle API for sandboxed execution of JavaScript, Java, and C++ code directly in the browser.
+- **User Profiles & Social Features:** View detailed profiles, manage friends list, and climb the global leaderboards.
 - **Unified Coding Hub:** Seamlessly integrates coding practice and tracking in one place.
-
----
-
-## 🧠 The AI Architecture (Built with Gemma)
-
-Our AI pipeline is designed to be highly modular and production-ready. While our live React web application handles the UI and dynamic state, our AI Research & Architecture was built and tested entirely on Kaggle using the **Gemma** family of models.
-
-### 🔬 [View our Kaggle AI Research Lab Notebook Here](https://www.kaggle.com/code/aakaaankshaa/notebook9fbea3b67f)
-### 🌐 [Play with the Live DevArena Web App Here](https://devarena-frontend.onrender.com/)
-
-In our Kaggle notebook, we successfully engineered and proved the following V2 backend systems:
-1. **LoRA Fine-Tuning:** We fine-tuned the highly efficient **Gemma 2B** model to act as a specialized coding coach, demonstrating the ability to handle custom instructional datasets. *(Note: Our architecture is designed for the Gemma 4 E4B model, but due to bleeding-edge library incompatibilities in the Hugging Face PEFT library with Gemma 4's custom ClippableLinear layers, we deployed the stable 2B architecture to guarantee a working production pipeline).*
-2. **Mathematical RAG Pipeline:** Built a Retrieval-Augmented Generation (RAG) system from scratch using TF-IDF and Cosine Similarity to mathematically retrieve the correct algorithmic definitions before generation.
-3. **Structured AI Code Judge:** Implemented strict structured prompting to force Gemma to act as an automated code evaluator, outputting deterministic JSON (Score, Bug Type, Feedback) that can be easily parsed by our Node.js backend.
-4. **Data Analytics:** Built a simulation pipeline to analyze the weakest coding topics across 1,000 DevArena users and fed those insights back into Gemma for dynamic platform-strategy generation.
 
 ---
 
@@ -41,16 +27,19 @@ In our Kaggle notebook, we successfully engineered and proved the following V2 b
 
 **Frontend:**
 - React.js + Vite
-- Tailwind CSS / Vanilla CSS (Modern Glassmorphism & Micro-animations)
-- State Management for dynamic user tracking
+- CSS (Modern Glassmorphism & Micro-animations)
+- Socket.io-client (Real-time events)
+- Web MediaRecorder API (Microphone/Voice)
 
-**Backend & API:**
+**Backend & Architecture:**
 - Node.js & Express
-- Groq Cloud API (For blazing-fast live model inference in the V1 Web App)
+- MongoDB & Mongoose (Database and Schema validation)
+- Socket.io (WebSocket multiplayer state machine)
 
-**AI Research & Model Engineering (Kaggle):**
-- **Model:** Google DeepMind Gemma 
-- **Libraries:** PyTorch, Transformers, PEFT, Scikit-learn, Pandas, Matplotlib
+**APIs & Integrations:**
+- **Groq Cloud API:** For blazing-fast live LLM inference and AI Coach responses.
+- **ElevenLabs API:** High-fidelity TTS (Text-to-Speech) and STT (Speech-to-Text) for immersive voice coaching.
+- **JDoodle API:** Secure compiler and code execution engine for Live Duels.
 
 ---
 
@@ -58,8 +47,8 @@ In our Kaggle notebook, we successfully engineered and proved the following V2 b
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-username/DevArena.git
-   cd DevArena
+   git clone https://github.com/akanksha312kumari/Dev-Arena.git
+   cd Dev-Arena
    ```
 
 2. **Install Frontend Dependencies**
@@ -74,10 +63,17 @@ In our Kaggle notebook, we successfully engineered and proved the following V2 b
    ```
 
 4. **Set up Environment Variables**
-   Create a `.env` file in the `/server` directory and add your API keys:
+   Create a `.env` file in the `/server` directory and add your API keys. Reference `.env.example`:
    ```env
-   GROQ_API_KEY=your_api_key_here
    PORT=5000
+   MONGO_URI=your_mongodb_atlas_uri_here
+   JDOODLE_CLIENT_ID=your_id
+   JDOODLE_CLIENT_SECRET=your_secret
+   JDOODLE_API_URL=https://api.jdoodle.com/v1/execute
+   ELEVENLABS_API_KEY=your_elevenlabs_key
+   ELEVENLABS_TTS_VOICE_ID=21m00Tcm4TlvDq8ikWAM
+   ELEVENLABS_TTS_MODEL_ID=eleven_multilingual_v2
+   ANTI_CHEAT_VIOLATION_THRESHOLD=3
    ```
 
 5. **Start the Development Servers**
@@ -89,7 +85,7 @@ In our Kaggle notebook, we successfully engineered and proved the following V2 b
    In Terminal 2 (Backend):
    ```bash
    cd server
-   npm run dev
+   npm start
    ```
 
 6. Open your browser and navigate to `http://localhost:5173` to meet your new AI Coach!
@@ -97,7 +93,9 @@ In our Kaggle notebook, we successfully engineered and proved the following V2 b
 ---
 
 <div align="center">
-  <p>Built with ❤️ for VIBEFORGE 1.0</p>
-  <h3>Team: NEURAL PAIR</h3>
-  <p><strong>Members:</strong> Akanksha Kumari and Tushar Vaskar Sharma</p>
+  <p>Built with ❤️ for <strong>HACKNEX SEASON 2</strong></p>
+  <p><strong>Place:</strong> JIS COLLEGE OF ENGINEERING</p>
+  <h3>Team: MuttonBiryani</h3>
+  <p><strong>Team Leader:</strong> Biswaranjan Nag</p>
+  <p><strong>Members:</strong> Akanksha Kumari, Tushar Vaskar Sharma, Aniket Chaudhary, Raja Banerjee, Shraya Saha</p>
 </div>
